@@ -178,7 +178,7 @@ if (!is.null(asNamespace("DBI")$dbIsValid)) {
 
 setMethod("dbSendQuery", signature(conn="JDBCConnection", statement="character"),  def=function(conn, statement, ..., list=NULL) {
   statement <- as.character(statement)[1L]
-  ## if the statement starts with {call or {?= call then we use CallableStatement 
+  ## if the statement starts with {call or {?= call then we use CallableStatement
   if (isTRUE(as.logical(grepl("^\\{(call|\\?= *call)", statement)))) {
     s <- .jcall(conn@jc, "Ljava/sql/CallableStatement;", "prepareCall", statement, check=FALSE)
     .verify.JDBC.result(s, "Unable to execute JDBC callable statement", statement=statement)
@@ -196,7 +196,7 @@ setMethod("dbSendQuery", signature(conn="JDBCConnection", statement="character")
     .verify.JDBC.result(s, "Unable to create simple JDBC statement", statement=statement)
     r <- .jcall(s, "Ljava/sql/ResultSet;", "executeQuery", as.character(statement)[1], check=FALSE)
     .verify.JDBC.result(r, "Unable to retrieve JDBC result set", statement=statement)
-  } 
+  }
   md <- .jcall(r, "Ljava/sql/ResultSetMetaData;", "getMetaData", check=FALSE)
   .verify.JDBC.result(md, "Unable to retrieve JDBC result set meta data in dbSendQuery", statement=statement)
   new("JDBCResult", jr=r, md=md, stat=s, env=new.env(parent=emptyenv()))
@@ -206,7 +206,7 @@ if (is.null(getGeneric("dbSendUpdate"))) setGeneric("dbSendUpdate", function(con
 
 setMethod("dbSendUpdate",  signature(conn="JDBCConnection", statement="character"),  def=function(conn, statement, ..., list=NULL, max.batch=10000L) {
   statement <- as.character(statement)[1L]
-  ## if the statement starts with {call or {?= call then we use CallableStatement 
+  ## if the statement starts with {call or {?= call then we use CallableStatement
   if (isTRUE(as.logical(grepl("^\\{(call|\\?= *call)", statement)))) {
     s <- .jcall(conn@jc, "Ljava/sql/CallableStatement;", "prepareCall", statement, check=FALSE)
     .verify.JDBC.result(s, "Unable to execute JDBC callable statement", statement=statement)
@@ -249,6 +249,18 @@ setMethod("dbSendUpdate",  signature(conn="JDBCConnection", statement="character
   }
   .verify.ex("execute JDBC update query failed in dbSendUpdate", statement=statement)
 })
+
+setMethod("dbExecute", signature(conn="JDBCConnection", statement="character"),  def=function(conn, statement, ..., list=NULL, max.batch=10000L) {
+  rs <- dbSendQuery(conn, statement, ..., list = list, max.batch = max.batch)
+  on.exit(dbClearResult(rs))
+  dbGetRowsAffected(rs)
+})
+
+setMethod("dbGetRowsAffected", "JDBCResult",
+          def = function(res, ...) {
+            .jcall(res@stat, "I", "getUpdateCount")
+          },
+          valueClass = "numeric")
 
 setMethod("dbGetQuery", signature(conn="JDBCConnection", statement="character"),  def=function(conn, statement, ..., n=-1, block=2048L, use.label=TRUE) {
   r <- dbSendQuery(conn, statement, ...)
